@@ -187,6 +187,9 @@ const ProjectRow = memo(function ProjectRow({
       <div
         data-testid="sidebar-project-row"
         data-repo-path={project.repoPath}
+        tabIndex={hasMenu ? 0 : undefined}
+        aria-haspopup={hasMenu ? "menu" : undefined}
+        aria-label={hasMenu ? `Project actions for ${project.displayName}` : undefined}
         onContextMenu={
           hasMenu
             ? (e) => {
@@ -195,7 +198,21 @@ const ProjectRow = memo(function ProjectRow({
               }
             : undefined
         }
-        className="group flex items-center gap-2 px-3 py-1.5 text-text-secondary hover:bg-surface-800/50 transition-colors"
+        onKeyDown={
+          hasMenu
+            ? (e) => {
+                // Keyboard path to the edit/remove menu, mirroring
+                // SidebarGroupHeader. Only fire on the row itself, not the
+                // inner New-session button.
+                if (e.target !== e.currentTarget) return;
+                if (e.key !== "ContextMenu" && !(e.shiftKey && e.key === "F10")) return;
+                e.preventDefault();
+                const rect = e.currentTarget.getBoundingClientRect();
+                openMenuAt(rect.left + 12, rect.bottom + 4);
+              }
+            : undefined
+        }
+        className="group flex items-center gap-2 px-3 py-1.5 text-text-secondary hover:bg-surface-800/50 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-600"
         style={repoColorStyle(project.color)}
       >
         <span className="shrink-0 text-[10px] leading-none text-text-dim" title="Saved project" aria-hidden>
