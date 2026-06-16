@@ -1833,7 +1833,7 @@ const SidebarGroupHeader = memo(function SidebarGroupHeader({
             {group.displayName}
           </span>
         </button>
-        <Tooltip text={offline ? OFFLINE_TITLE : "New session"}>
+        <Tooltip text={offline ? OFFLINE_TITLE : `New session in ${group.displayName}`}>
           <button
             onClick={onNewSession}
             disabled={offline}
@@ -2467,12 +2467,12 @@ export function WorkspaceSidebar({
               </svg>
             </button>
           </Tooltip>
-          <Tooltip text={offline ? OFFLINE_TITLE : "New session"}>
+          <Tooltip text={offline ? OFFLINE_TITLE : "New session (choose project)"}>
             <button
               onClick={onNew}
               disabled={offline}
               className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-text-secondary hover:bg-surface-800 cursor-pointer rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-text-muted disabled:hover:bg-transparent"
-              aria-label="New session"
+              aria-label="New session (choose project)"
             >
               <svg
                 width="16"
