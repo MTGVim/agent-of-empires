@@ -792,7 +792,6 @@ function AppContent({ loginRequired, onLogout }: { loginRequired: boolean; onLog
     if (window.innerWidth < 768) setSidebarOpen(false);
   }, [navigate]);
 
-
   // Profiles moved into Settings as a tab; redirect the retired standalone
   // route so old bookmarks and links still land somewhere valid.
   useEffect(() => {
@@ -1294,9 +1293,7 @@ function AppContent({ loginRequired, onLogout }: { loginRequired: boolean; onLog
           isDevBuild={isDebugBuild(serverAbout)}
           onGoDashboard={handleGoDashboard}
           sidebarColumnVisible={!showSettings && sidebarOpen}
-          rightColumnVisible={
-            isMdUp && !showSettings && !!activeWorkspace && !!activeSession && !diffCollapsed
-          }
+          rightColumnVisible={isMdUp && !showSettings && !!activeWorkspace && !!activeSession && !diffCollapsed}
         />
 
         <DisconnectBanner />
@@ -1366,7 +1363,7 @@ function AppContent({ loginRequired, onLogout }: { loginRequired: boolean; onLog
           <ProjectFormModal
             initial={projectForm.editProject}
             onClose={() => setProjectForm(null)}
-            onSaved={() => void refreshProjects()}
+            onSaved={() => refreshProjects()}
           />
         )}
 

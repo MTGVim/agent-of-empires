@@ -10,9 +10,10 @@ interface Props {
   initial?: ProjectInfo | null;
   onClose: () => void;
   /** Called after a successful create/update so the caller can refresh the
-   *  registry. The modal does not close itself first; the caller owns that
-   *  via `onClose`, which this also invokes. */
-  onSaved: () => void;
+   *  registry. Awaited before the modal closes, so the section reflects the
+   *  change by the time the form disappears (matching the pin/unpin handlers).
+   *  May be sync or return a promise. */
+  onSaved: () => void | Promise<void>;
 }
 
 const lockedFieldClass =
@@ -42,12 +43,12 @@ export function ProjectFormModal({ initial, onClose, onSaved }: Props) {
       setSubmitting(true);
       setError(null);
       const result = await updateProject(initial.name, initial.scope, baseBranch.trim() || null);
-      setSubmitting(false);
       if (!result.ok) {
+        setSubmitting(false);
         setError(result.error || "Update failed");
         return;
       }
-      onSaved();
+      await onSaved();
       onClose();
       return;
     }
@@ -63,12 +64,12 @@ export function ProjectFormModal({ initial, onClose, onSaved }: Props) {
       allow_override: allowOverride || undefined,
       default_base_branch: baseBranch.trim() || undefined,
     });
-    setSubmitting(false);
     if (!result.ok) {
+      setSubmitting(false);
       setError(result.error || "Add failed");
       return;
     }
-    onSaved();
+    await onSaved();
     onClose();
   };
 
