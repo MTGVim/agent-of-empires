@@ -1,13 +1,15 @@
-// Live coverage for pinning a project from the web sidebar (#2047):
-//   - A registered project with no sessions shows as an empty header in the
-//     sidebar (the ◆ marker + a New session button), parity with the TUI.
+// Live coverage for pinning a project from the web sidebar (#2047, #2212):
+//   - A registered project with no sessions shows as a row in the dedicated
+//     Projects section (the ◆ marker + a New session button), not interleaved
+//     with the session groups.
 //   - "Pin project" on a populated repo header POSTs /api/projects and the
 //     ◆ marker appears and survives a reload (registry persistence).
-//   - "Unpin project" on the empty project DELETEs /api/projects and its
-//     header drops from the sidebar (it had no sessions keeping it alive).
+//   - "Remove project" on the no-session project DELETEs /api/projects and its
+//     row drops from the Projects section.
 //
-// The render path is in web/src/components/WorkspaceSidebar.tsx + the merge
-// in web/src/lib/registeredProjects.ts; the registry CRUD is
+// The render path is web/src/components/WorkspaceSidebar.tsx +
+// web/src/components/ProjectsSection.tsx + the merge in
+// web/src/lib/registeredProjects.ts; the registry CRUD is
 // src/server/api/projects.rs. Live coverage catches wire-format drift the
 // mocked specs miss.
 
@@ -63,7 +65,7 @@ function seedSessionAndEmptyProject(opts: {
 }
 
 base.describe("pin a project from the web sidebar (#2047)", () => {
-  base("empty project shows, pin persists, unpin removes", async ({ page }, testInfo) => {
+  base("no-session project shows in Projects section, pin persists, remove deletes", async ({ page }, testInfo) => {
     const serve = await spawnAoeServe({
       authMode: "none",
       workerIndex: testInfo.workerIndex,
@@ -72,6 +74,8 @@ base.describe("pin a project from the web sidebar (#2047)", () => {
     });
 
     try {
+      page.on("dialog", (d) => void d.accept());
+
       const sessions = await listSessions(serve.baseUrl);
       expect(sessions).toHaveLength(1);
       const repoA = sessions[0]!.project_path as string;
@@ -82,12 +86,13 @@ base.describe("pin a project from the web sidebar (#2047)", () => {
       const headerA = page.locator(`[data-testid='sidebar-group-header'][data-group-id='${repoA}']`);
       await expect(headerA).toBeVisible({ timeout: 10_000 });
 
-      // The pinned-but-empty project (projectB) renders despite no sessions,
-      // with the ◆ marker and a New session button.
-      const headerB = page.locator("[data-testid='sidebar-group-header']").filter({ hasText: "projectB" });
-      await expect(headerB).toBeVisible({ timeout: 10_000 });
-      await expect(headerB.locator("[data-testid='sidebar-group-pinned-marker']")).toBeVisible();
-      await expect(headerB.locator("[aria-label='New session in projectB']")).toBeVisible();
+      // The no-session project (projectB) renders in the dedicated Projects
+      // section, with the ◆ marker and a New session button, not as a group.
+      const section = page.getByTestId("sidebar-projects-section");
+      const rowB = section.locator("[data-testid='sidebar-project-row']").filter({ hasText: "projectB" });
+      await expect(rowB).toBeVisible({ timeout: 10_000 });
+      await expect(rowB.locator("[aria-label='New session in projectB']")).toBeVisible();
+      await expect(page.locator("[data-testid='sidebar-group-header']").filter({ hasText: "projectB" })).toHaveCount(0);
 
       // ---- Pin projectA from its header menu ----
       await headerA.click({ button: "right" });
@@ -108,20 +113,25 @@ base.describe("pin a project from the web sidebar (#2047)", () => {
         timeout: 10_000,
       });
 
-      // ---- Unpin the empty projectB: its header drops (no sessions) ----
-      const headerBReloaded = page.locator("[data-testid='sidebar-group-header']").filter({ hasText: "projectB" });
-      await headerBReloaded.click({ button: "right" });
-      const unpinDelete = page.waitForResponse(
+      // ---- Remove the no-session projectB from the Projects section ----
+      const rowBReloaded = page
+        .getByTestId("sidebar-projects-section")
+        .locator("[data-testid='sidebar-project-row']")
+        .filter({ hasText: "projectB" });
+      await rowBReloaded.click({ button: "right" });
+      const removeDelete = page.waitForResponse(
         (res) => res.url().includes("/api/projects/") && res.request().method() === "DELETE",
       );
-      await page.locator("[data-testid='sidebar-group-context-menu-unpin']").click();
-      const unpinRes = await unpinDelete;
-      expect(unpinRes.ok()).toBe(true);
+      await page.locator("[data-testid='sidebar-project-context-menu-remove']").click();
+      const removeRes = await removeDelete;
+      expect(removeRes.ok()).toBe(true);
 
-      await expect(page.locator("[data-testid='sidebar-group-header']").filter({ hasText: "projectB" })).toHaveCount(
-        0,
-        { timeout: 10_000 },
-      );
+      await expect(
+        page
+          .getByTestId("sidebar-projects-section")
+          .locator("[data-testid='sidebar-project-row']")
+          .filter({ hasText: "projectB" }),
+      ).toHaveCount(0, { timeout: 10_000 });
     } finally {
       await serve.stop();
     }
