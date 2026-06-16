@@ -26,6 +26,14 @@ function workspace(repoPath: string): Workspace {
   };
 }
 
+// A workspace whose only session is archived, so workspaceIsSunk() is true.
+function sunkWorkspace(repoPath: string): Workspace {
+  return {
+    ...workspace(repoPath),
+    sessions: [{ archived_at: "2026-01-01T00:00:00Z" } as Workspace["sessions"][number]],
+  };
+}
+
 function repoGroup(repoPath: string, over: Partial<RepoGroup> = {}): RepoGroup {
   return {
     id: repoPath,
@@ -89,6 +97,16 @@ describe("mergeRegisteredProjects", () => {
     );
     expect(emptyProjects).toHaveLength(1);
     expect(emptyProjects[0]!.registeredProjects.map((p) => p.scope)).toEqual(["global", "profile"]);
+  });
+
+  it("surfaces a registered repo whose only workspace is sunk as an empty project", () => {
+    // All-sunk groups are hidden from the live list, so the registration must
+    // fall through to the Projects section instead of vanishing. See #2212.
+    const allSunk = repoGroup("/work/alpha", { workspaces: [sunkWorkspace("/work/alpha")] });
+    const { groups, emptyProjects } = mergeRegisteredProjects([allSunk], [project("/work/alpha")]);
+    expect(groups[0]!.registeredProjects).toHaveLength(1);
+    expect(emptyProjects).toHaveLength(1);
+    expect(emptyProjects[0]!.repoPath).toBe("/work/alpha");
   });
 
   it("sorts empty projects by display name", () => {

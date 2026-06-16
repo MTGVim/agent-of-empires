@@ -1,5 +1,6 @@
 import type { ProjectInfo, RepoGroup } from "./types";
 import type { RepoColor } from "./repoAppearance";
+import { workspaceIsSunk } from "./sidebarSort";
 import { MULTI_REPO_GROUP_ID, SCRATCH_GROUP_ID } from "../hooks/useRepoGroups";
 
 // Best-effort path key for matching a session-derived repo group against a
@@ -68,7 +69,14 @@ export function mergeRegisteredProjects(
       return { ...group, registeredProjects: [] };
     }
     const key = normalizeProjectPathKey(group.repoPath);
-    seen.add(key);
+    // Only treat the registration as covered by a live group when that group
+    // has a non-sunk workspace. A repo whose only sessions are archived /
+    // snoozed renders neither here (sidebarGroupShouldRender hides it) nor in
+    // its sessions, so let it fall through to the Projects section instead of
+    // vanishing entirely. See #2212.
+    if (group.workspaces.some((workspace) => !workspaceIsSunk(workspace))) {
+      seen.add(key);
+    }
     return { ...group, registeredProjects: byKey.get(key) ?? [] };
   });
 
