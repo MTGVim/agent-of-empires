@@ -43,6 +43,9 @@ test.describe("Sidebar", () => {
     // The dedicated Projects section (#2212) replaced the /projects page: a
     // registered project with no live session renders as a row in the
     // sidebar, alongside an add-project button.
+    // Stub /api/sessions so the app reports online; the add button is hidden
+    // while offline, which would make the assertion below time out.
+    await page.route("**/api/sessions", (r) => r.fulfill({ json: { sessions: [], workspace_ordering: [] } }));
     await page.route("**/api/projects*", (r) =>
       r.fulfill({ json: [{ name: "saved-repo", path: "/work/saved-repo", scope: "global" }] }),
     );
