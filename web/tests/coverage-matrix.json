@@ -1537,6 +1537,13 @@
       "components": ["web/src/components/ProjectFormModal.tsx"]
     },
     {
+      "id": "projects-section-unit",
+      "kind": "vitest",
+      "risk": "low",
+      "specs": ["src/components/__tests__/ProjectsSection.test.tsx"],
+      "components": ["web/src/components/ProjectsSection.tsx"]
+    },
+    {
       "id": "story.settings-tmux-select",
       "kind": "vitest",
       "risk": "medium",
