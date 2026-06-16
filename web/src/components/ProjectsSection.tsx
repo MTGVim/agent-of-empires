@@ -202,8 +202,8 @@ const ProjectRow = memo(function ProjectRow({
           ◆
         </span>
         <button
-          onClick={() => !offline && onCreateSession(project.repoPath)}
-          disabled={offline}
+          onClick={() => canModify && onCreateSession(project.repoPath)}
+          disabled={!canModify}
           title={`New session in ${project.displayName}`}
           className="min-w-0 flex-1 text-left cursor-pointer disabled:cursor-not-allowed"
         >
