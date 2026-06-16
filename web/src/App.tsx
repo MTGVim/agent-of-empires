@@ -13,6 +13,7 @@ import { useSessionGroups } from "./hooks/useSessionGroups";
 import { useNestedSidebarGroups } from "./hooks/useNestedSidebarGroups";
 import { useSidebarSortMode } from "./hooks/useSidebarSortMode";
 import { useSidebarAxis } from "./hooks/useSidebarAxis";
+import type { ProjectInfo, RepoGroup } from "./lib/types";
 import { repoGroupToSidebarGroup, type SidebarGroup } from "./lib/sidebarGroups";
 import { useProjects } from "./hooks/useProjects";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
@@ -73,7 +74,7 @@ import { MobileRightPanelPicker } from "./components/MobileRightPanelPicker";
 import { MobileMainPane } from "./components/MobileMainPane";
 import { DiffFileViewer } from "./components/diff/DiffFileViewer";
 import { SettingsView } from "./components/SettingsView";
-import { ProjectsView } from "./components/ProjectsView";
+import { ProjectFormModal } from "./components/ProjectFormModal";
 import { HelpOverlay } from "./components/HelpOverlay";
 import { useTour } from "./hooks/useTour";
 import { useWelcomePhase } from "./hooks/useWelcomePhase";
@@ -222,11 +223,9 @@ function AppContent({ loginRequired, onLogout }: { loginRequired: boolean; onLog
   const sessionMatch = useMatch("/session/:sessionId");
   const settingsRootMatch = useMatch("/settings");
   const settingsTabMatch = useMatch("/settings/:tab");
-  const projectsMatch = useMatch("/projects");
   const profilesMatch = useMatch("/profiles");
   const activeSessionId = sessionMatch?.params.sessionId ?? null;
   const showSettings = settingsRootMatch !== null || settingsTabMatch !== null;
-  const showProjects = projectsMatch !== null;
   const settingsTab = settingsTabMatch?.params.tab ?? null;
 
   const {
@@ -278,6 +277,7 @@ function AppContent({ loginRequired, onLogout }: { loginRequired: boolean; onLog
   const { projects, refresh: refreshProjects } = useProjects();
   const {
     groups: repoGroups,
+    emptyProjects,
     toggleRepoCollapsed,
     updateRepoAppearance,
     reorderRepoGroups,
@@ -717,6 +717,28 @@ function AppContent({ loginRequired, onLogout }: { loginRequired: boolean; onLog
     [refreshProjects],
   );
 
+  // Add / edit a registered project from the sidebar Projects section. The
+  // modal is open for `add` (no `editProject`) or `edit` (a specific
+  // registration); both flows refresh the registry on save. See #2212.
+  const [projectForm, setProjectForm] = useState<{ editProject: ProjectInfo | null } | null>(null);
+  const handleAddProject = useCallback(() => setProjectForm({ editProject: null }), []);
+  const handleEditProject = useCallback((project: ProjectInfo) => setProjectForm({ editProject: project }), []);
+
+  // Remove a project: delete every registration for its path, matching the
+  // unpin semantics, then refresh. Confirms first since it is not undoable.
+  const handleRemoveProject = useCallback(
+    async (group: RepoGroup) => {
+      if (!confirm(`Remove project '${group.displayName}' from the sidebar?`)) return;
+      const results = await Promise.all(group.registeredProjects.map((p) => deleteProject(p.name, p.scope)));
+      const failed = results.find((r) => !r.ok);
+      if (failed) {
+        toastBus.handler?.error(failed.error ?? "Failed to remove project");
+      }
+      await refreshProjects();
+    },
+    [refreshProjects],
+  );
+
   // The right-panel control toggles the desktop split, but on mobile there
   // is no split to collapse: it opens the view picker instead (#1452).
   const toggleDiff = useCallback(() => {
@@ -770,18 +792,6 @@ function AppContent({ loginRequired, onLogout }: { loginRequired: boolean; onLog
     if (window.innerWidth < 768) setSidebarOpen(false);
   }, [navigate]);
 
-  const handleOpenProjects = useCallback(() => {
-    navigate("/projects");
-    if (window.innerWidth < 768) setSidebarOpen(false);
-  }, [navigate]);
-
-  const handleCloseProjects = useCallback(() => {
-    if (activeSessionId) {
-      navigate(`/session/${encodeURIComponent(activeSessionId)}`);
-    } else {
-      navigate("/");
-    }
-  }, [navigate, activeSessionId]);
 
   // Profiles moved into Settings as a tab; redirect the retired standalone
   // route so old bookmarks and links still land somewhere valid.
@@ -1004,10 +1014,6 @@ function AppContent({ loginRequired, onLogout }: { loginRequired: boolean; onLog
           readOnly={serverAbout?.read_only}
         />
       );
-    }
-
-    if (showProjects) {
-      return <ProjectsView onClose={handleCloseProjects} readOnly={serverAbout?.read_only} />;
     }
 
     // Refresh on `/session/<id>` paints once with `sessions === []` before
@@ -1245,7 +1251,6 @@ function AppContent({ loginRequired, onLogout }: { loginRequired: boolean; onLog
     sessionsLoaded &&
     !activeSessionId &&
     !showSettings &&
-    !showProjects &&
     !showSessionWizard &&
     !showHelp &&
     !showAbout &&
@@ -1288,9 +1293,9 @@ function AppContent({ loginRequired, onLogout }: { loginRequired: boolean; onLog
           isOffline={!!error}
           isDevBuild={isDebugBuild(serverAbout)}
           onGoDashboard={handleGoDashboard}
-          sidebarColumnVisible={!showSettings && !showProjects && sidebarOpen}
+          sidebarColumnVisible={!showSettings && sidebarOpen}
           rightColumnVisible={
-            isMdUp && !showSettings && !showProjects && !!activeWorkspace && !!activeSession && !diffCollapsed
+            isMdUp && !showSettings && !!activeWorkspace && !!activeSession && !diffCollapsed
           }
         />
 
@@ -1299,7 +1304,7 @@ function AppContent({ loginRequired, onLogout }: { loginRequired: boolean; onLog
         <DashboardUpdateBanner />
 
         <div className="flex flex-1 min-h-0">
-          {!showSettings && !showProjects && (
+          {!showSettings && (
             <WorkspaceSidebar
               groups={sidebarGroups}
               nestedGroups={nestedGroups}
@@ -1319,8 +1324,11 @@ function AppContent({ loginRequired, onLogout }: { loginRequired: boolean; onLog
               onCreateSession={handleCreateSession}
               onPinProject={handlePinProject}
               onUnpinProject={handleUnpinProject}
+              emptyProjects={emptyProjects}
+              onAddProject={handleAddProject}
+              onEditProject={handleEditProject}
+              onRemoveProject={handleRemoveProject}
               onSettings={handleOpenSettings}
-              onProjects={handleOpenProjects}
               onDeleteSession={handleDeleteSession}
               onStopSession={handleStopSession}
               onStartSession={handleStartSession}
@@ -1351,6 +1359,14 @@ function AppContent({ loginRequired, onLogout }: { loginRequired: boolean; onLog
               setWizardPrefill(undefined);
             }}
             prefill={wizardPrefill}
+          />
+        )}
+
+        {projectForm && (
+          <ProjectFormModal
+            initial={projectForm.editProject}
+            onClose={() => setProjectForm(null)}
+            onSaved={() => void refreshProjects()}
           />
         )}
 
