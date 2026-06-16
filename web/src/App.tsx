@@ -1253,7 +1253,8 @@ function AppContent({ loginRequired, onLogout }: { loginRequired: boolean; onLog
     !showSessionWizard &&
     !showHelp &&
     !showAbout &&
-    !showPalette;
+    !showPalette &&
+    !projectForm;
   // First-run theme choice is phase one of onboarding. It decides on the same
   // settled-dashboard gate as the tour, then the tour follows once the modal
   // resolves so the two never overlap on first load.
