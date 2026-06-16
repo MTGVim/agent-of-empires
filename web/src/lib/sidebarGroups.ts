@@ -51,13 +51,12 @@ export interface SidebarGroup {
   /** Set when `kind === "sessionGroup"`. Empty string for Ungrouped. */
   groupPath?: string;
   /** Registry entries for this repo path (the "pin"); empty when unpinned.
-   *  Repo axis only. See #2047. */
+   *  Repo axis only. A no-session registered project is not a group: it lives
+   *  in the dedicated Projects section, so a group here always has live
+   *  workspaces. See #2047, #2212. */
   registeredProjects: ProjectInfo[];
   /** Derived: the repo is registered (pinned). */
   pinned: boolean;
-  /** Derived: registered with no live workspace, so it shows as an empty
-   *  header that only the pin keeps visible. */
-  pinnedEmpty: boolean;
 }
 
 function isSyntheticRepoGroup(id: string): boolean {
@@ -93,7 +92,6 @@ export function repoGroupToSidebarGroup(group: RepoGroup): SidebarGroup {
     repoPath: group.repoPath,
     registeredProjects: synthetic ? [] : group.registeredProjects,
     pinned,
-    pinnedEmpty: pinned && group.workspaces.length === 0,
   };
 }
 
@@ -188,7 +186,6 @@ export function buildSessionGroups(
       groupPath: gp,
       registeredProjects: [],
       pinned: false,
-      pinnedEmpty: false,
     });
   }
 
@@ -208,12 +205,12 @@ export function sidebarGroupHasLiveWorkspace(group: SidebarGroup): boolean {
   return group.workspaces.some((v) => !workspaceIsSunk(v.workspace));
 }
 
-// Whether a group's header should render at all. A pinned-but-empty project
-// has no live rows but must still show its header (that is the whole point
-// of pinning), so it renders even though `sidebarGroupHasLiveWorkspace` is
-// false. See #2047.
+// Whether a group's header should render at all. No-session registered
+// projects are no longer groups (they render in the dedicated Projects
+// section), so a group renders only when it still has a live workspace row.
+// See #2047, #2212.
 export function sidebarGroupShouldRender(group: SidebarGroup): boolean {
-  return group.pinnedEmpty || sidebarGroupHasLiveWorkspace(group);
+  return sidebarGroupHasLiveWorkspace(group);
 }
 
 // The workspaces an "archive all in group" action would act on: every member
@@ -284,9 +281,9 @@ export function nestedSidebarGroupHasLiveWorkspace(group: NestedSidebarGroup): b
   return group.subgroups.some(sidebarGroupHasLiveWorkspace);
 }
 
-// Nested-axis equivalent of `sidebarGroupShouldRender`: a pinned-but-empty
-// repo has no subgroups (no sessions), so it would fail the live check, but
-// its header must still render. See #2047.
+// Nested-axis equivalent of `sidebarGroupShouldRender`: a repo block renders
+// only when one of its subgroups still has a live row. No-session registered
+// projects render in the dedicated Projects section, not here. See #2212.
 export function nestedSidebarGroupShouldRender(group: NestedSidebarGroup): boolean {
-  return group.repo.pinnedEmpty || group.subgroups.some(sidebarGroupShouldRender);
+  return group.subgroups.some(sidebarGroupShouldRender);
 }

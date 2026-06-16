@@ -20,30 +20,39 @@ function isSyntheticRepoGroup(id: string): boolean {
   return id === MULTI_REPO_GROUP_ID || id === SCRATCH_GROUP_ID;
 }
 
-// Attach registry metadata to the session-derived repo groups and append a
+/** Live session-derived repo groups (with registry metadata attached) plus
+ *  the registered projects that have no live group, surfaced separately so
+ *  the sidebar can render them in a dedicated "Projects" section instead of
+ *  interleaving them with active groups. See #2212. */
+export interface MergedRegisteredProjects {
+  groups: RepoGroup[];
+  emptyProjects: RepoGroup[];
+}
+
+// Attach registry metadata to the session-derived repo groups and collect a
 // zero-workspace group for every registered project that has no live group
-// (a pinned-but-empty project). Pure so it can be unit-tested directly and
-// memoized in `useRepoGroups`.
+// (a no-session project). Pure so it can be unit-tested directly and memoized
+// in `useRepoGroups`.
 //
 // A registered path that matches a populated group attaches to it (so the
-// group renders a pin marker) instead of producing a second empty header.
+// group renders a pin marker) instead of producing a separate empty entry.
 // Registrations are grouped by normalized path, so the same repo registered
-// under both global and profile scope collapses into one group carrying both
-// (unpin removes every registration for the path). Synthetic Multi-repo /
-// Scratch buckets never pin: their `repoPath` is a sentinel, not a repo.
+// under both global and profile scope collapses into one empty project
+// carrying both (remove drops every registration for the path). Synthetic
+// Multi-repo / Scratch buckets never pin: their `repoPath` is a sentinel, not
+// a repo.
 export function mergeRegisteredProjects(
   repoGroups: RepoGroup[],
   projects: ProjectInfo[],
-  // Per-browser appearance/collapse for the appended empty groups, so a
-  // repo that was aliased / colored / collapsed while it had sessions keeps
-  // that look once it empties out and only the pin keeps it visible. Omitted
-  // in unit tests, where the structural shape is what matters.
+  // Per-browser appearance for the no-session projects, so a repo that was
+  // aliased / colored while it had sessions keeps that look once it empties
+  // out and only the registration keeps it visible. Omitted in unit tests,
+  // where the structural shape is what matters. See #2047, #2212.
   resolve?: {
     alias: (repoPath: string) => string | null;
     color: (repoPath: string) => RepoColor | null;
-    collapsed: (repoPath: string) => boolean;
   },
-): RepoGroup[] {
+): MergedRegisteredProjects {
   const byKey = new Map<string, ProjectInfo[]>();
   for (const project of projects) {
     const key = normalizeProjectPathKey(project.path);
@@ -54,7 +63,7 @@ export function mergeRegisteredProjects(
   }
 
   const seen = new Set<string>();
-  const merged = repoGroups.map((group) => {
+  const groups = repoGroups.map((group) => {
     if (isSyntheticRepoGroup(group.id)) {
       return { ...group, registeredProjects: [] };
     }
@@ -63,13 +72,14 @@ export function mergeRegisteredProjects(
     return { ...group, registeredProjects: byKey.get(key) ?? [] };
   });
 
+  const emptyProjects: RepoGroup[] = [];
   for (const [key, registrations] of byKey) {
     if (seen.has(key)) continue;
     const primary = registrations[0];
     if (!primary) continue;
     const defaultDisplayName = primary.path.split("/").pop() || primary.path;
     const alias = resolve?.alias(primary.path) ?? null;
-    merged.push({
+    emptyProjects.push({
       id: primary.path,
       repoPath: primary.path,
       displayName: alias ?? defaultDisplayName,
@@ -79,10 +89,11 @@ export function mergeRegisteredProjects(
       remoteOwner: null,
       workspaces: [],
       status: "idle",
-      collapsed: resolve?.collapsed(primary.path) ?? false,
+      collapsed: false,
       registeredProjects: registrations,
     });
   }
+  emptyProjects.sort((a, b) => a.displayName.localeCompare(b.displayName));
 
-  return merged;
+  return { groups, emptyProjects };
 }
