@@ -108,7 +108,9 @@ test.describe("Wizard project step (#1219)", () => {
     // saved project exists.
     await expect(page.getByRole("button", { name: "Recent", exact: true })).toBeVisible();
     await expect(page.getByText("Saved projects")).toBeVisible();
-    const savedRow = page.getByRole("button").filter({ hasText: "/srv/my-saved-repo" }).first();
+    // Scope to the wizard: the saved project also renders in the sidebar
+    // Projects section now (#2212), so a page-wide locator is ambiguous.
+    const savedRow = page.getByTestId("session-wizard").getByRole("button").filter({ hasText: "/srv/my-saved-repo" });
     await expect(savedRow).toBeVisible();
     // Selecting the saved project populates the wizard path.
     await savedRow.click();
