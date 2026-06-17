@@ -86,8 +86,12 @@ test.describe("chat bubble overflow", () => {
     // targets p/li/blockquote/a only, so the code container is untouched).
     const codeScroller: Locator = viewport.locator(".acp-markdown .overflow-x-auto").first();
     await expect(codeScroller).toBeVisible();
-    const codeOverflowX = await codeScroller.evaluate((el) => getComputedStyle(el).overflowX);
-    expect(["auto", "scroll"]).toContain(codeOverflowX);
+    // Poll the computed style: re-renders (window/scroll bookkeeping) can
+    // briefly swap the element between the visibility check and a one-shot
+    // read, yielding "" or a stale node. Polling re-resolves until stable.
+    await expect
+      .poll(async () => codeScroller.evaluate((el) => getComputedStyle(el).overflowX))
+      .toMatch(/^(auto|scroll)$/);
 
     // The wrap rule must NOT leak into code: the long line stays a single
     // unwrapped line, so the code <pre>'s content is wider than its box.
