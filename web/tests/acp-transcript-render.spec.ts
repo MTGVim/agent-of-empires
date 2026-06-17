@@ -84,21 +84,26 @@ test.describe("chat bubble overflow", () => {
     // Fenced code block keeps its own horizontal-scroll affordance: the
     // scroll container's computed overflow-x is auto/scroll (the wrap rule
     // targets p/li/blockquote/a only, so the code container is untouched).
+    // The code block re-renders once syntax highlighting resolves, swapping
+    // the container node; a one-shot getComputedStyle can race that swap and
+    // read a detached node (empty string) or the pre-highlight state. Poll so
+    // the locator re-resolves to the settled container (#1469 flake).
     const codeScroller: Locator = viewport.locator(".acp-markdown .overflow-x-auto").first();
     await expect(codeScroller).toBeVisible();
-    const codeOverflowX = await codeScroller.evaluate((el) => getComputedStyle(el).overflowX);
-    expect(["auto", "scroll"]).toContain(codeOverflowX);
+    await expect
+      .poll(async () => codeScroller.evaluate((el) => getComputedStyle(el).overflowX))
+      .toMatch(/^(auto|scroll)$/);
 
     // The wrap rule must NOT leak into code: the long line stays a single
     // unwrapped line, so the code <pre>'s content is wider than its box.
     // (scrollWidth reports the full content width even though the bubble's
     // `pre { overflow: hidden }` clips it.) If overflow-wrap leaked here the
-    // line would wrap and scrollWidth would collapse to clientWidth.
+    // line would wrap and scrollWidth would collapse to clientWidth. Polled
+    // for the same highlight-swap reason as the overflow-x check above.
     const codePre: Locator = codeScroller.locator("pre").first();
-    const codeLineUnwrapped = await codePre.evaluate(
-      (el) => (el as HTMLElement).scrollWidth > (el as HTMLElement).clientWidth,
-    );
-    expect(codeLineUnwrapped).toBe(true);
+    await expect
+      .poll(async () => codePre.evaluate((el) => (el as HTMLElement).scrollWidth > (el as HTMLElement).clientWidth))
+      .toBe(true);
   });
 });
 
