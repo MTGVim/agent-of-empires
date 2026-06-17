@@ -63,9 +63,17 @@ describe("TerminalSettings localStorage contract", () => {
     expect(readStored().autoOpenKeyboard).toBe(false);
   });
 
-  it("persistent terminals checkbox writes the beta flag", () => {
+  it("showSidebarFab checkbox writes the boolean flag", () => {
     const { container } = render(<TerminalSettings />);
     const checkbox = container.querySelectorAll("input[type=checkbox]")[1] as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+    fireEvent.click(checkbox);
+    expect(readStored().showSidebarFab).toBe(true);
+  });
+
+  it("persistent terminals checkbox writes the beta flag", () => {
+    const { container } = render(<TerminalSettings />);
+    const checkbox = container.querySelectorAll("input[type=checkbox]")[2] as HTMLInputElement;
     fireEvent.click(checkbox);
     expect(readStored().persistentTerminals).toBe(true);
   });
@@ -125,7 +133,7 @@ describe("TerminalSettings localStorage contract", () => {
     const desktopSelect = container.querySelectorAll("select")[1] as HTMLSelectElement;
     const checkboxes = container.querySelectorAll("input[type=checkbox]");
     const checkbox = checkboxes[0] as HTMLInputElement;
-    const persistentCheckbox = checkboxes[1] as HTMLInputElement;
+    const persistentCheckbox = checkboxes[2] as HTMLInputElement;
     const persistentLimit = container.querySelector("input[type=number]") as HTMLInputElement;
     expect(mobileSelect.value).toBe("22");
     expect(desktopSelect.value).toBe("16");
@@ -144,7 +152,7 @@ describe("TerminalSettings localStorage contract", () => {
     );
     const { container } = render(<TerminalSettings />);
     const checkboxes = container.querySelectorAll("input[type=checkbox]");
-    const persistentCheckbox = checkboxes[1] as HTMLInputElement;
+    const persistentCheckbox = checkboxes[2] as HTMLInputElement;
     const persistentLimit = container.querySelector("input[type=number]") as HTMLInputElement | null;
 
     expect(persistentCheckbox.checked).toBe(false);

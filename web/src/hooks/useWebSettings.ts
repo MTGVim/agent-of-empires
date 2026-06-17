@@ -9,6 +9,7 @@ export interface WebSettings {
   mobileFontSize: number;
   desktopFontSize: number;
   autoOpenKeyboard: boolean;
+  showSidebarFab: boolean;
   persistentTerminals: boolean;
   maxPersistentTerminals: number;
   diffViewMode: "flat" | "tree";
@@ -21,6 +22,7 @@ function getDefaults(): WebSettings {
     mobileFontSize: 8,
     desktopFontSize: 14,
     autoOpenKeyboard: true,
+    showSidebarFab: false,
     persistentTerminals: false,
     maxPersistentTerminals: DEFAULT_PERSISTENT_TERMINALS,
     diffViewMode: window.innerWidth < 768 ? "flat" : "tree",

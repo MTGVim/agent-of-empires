@@ -94,6 +94,24 @@ export function TerminalSettings() {
         </div>
 
         <div>
+          <label className="flex items-center justify-between gap-3 cursor-pointer">
+            <div>
+              <div className="text-[13px] text-text-secondary">Show sidebar button on mobile</div>
+              <p className="text-[11px] text-text-muted mt-1">
+                Add a button in the terminal pane, next to the keyboard toggle, that opens the session sidebar so you
+                don't have to reach the top bar.
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              checked={settings.showSidebarFab}
+              onChange={(e) => update({ showSidebarFab: e.target.checked })}
+              className="accent-brand-600 w-4 h-4 shrink-0"
+            />
+          </label>
+        </div>
+
+        <div>
           <div className="space-y-3">
             <label className="flex items-center justify-between gap-3 cursor-pointer">
               <div>
